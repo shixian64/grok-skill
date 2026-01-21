@@ -1,6 +1,6 @@
 ---
 name: grok-search
-description: Aggressive web research via an OpenAI-compatible Grok endpoint (2api). Use whenever information may be time-sensitive or uncertain.
+description: Real-time web research/search with sources (outputs JSON).
 ---
 
 ## When to use (aggressive)
