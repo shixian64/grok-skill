@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Aggressive web research via OpenAI-compatible Grok endpoint."""
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -6,7 +11,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 
 def _compact_json(data: Any) -> str:
@@ -22,7 +27,7 @@ def _skill_root() -> str:
     return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
 
-def _default_skill_config_paths() -> list[str]:
+def _default_skill_config_paths() -> List[str]:
     root = _skill_root()
     return [
         os.path.join(root, "config.json"),
@@ -56,7 +61,7 @@ def _normalize_base_url_value(base_url: str) -> str:
     return base_url
 
 
-def _load_json_file(path: str) -> dict[str, Any]:
+def _load_json_file(path: str) -> Dict[str, Any]:
     try:
         with open(path, "r", encoding="utf-8-sig") as f:
             value = json.load(f)
@@ -74,7 +79,7 @@ def _normalize_base_url(base_url: str) -> str:
     return base_url
 
 
-def _coerce_json_object(text: str) -> dict[str, Any] | None:
+def _coerce_json_object(text: str) -> Optional[Dict[str, Any]]:
     text = text.strip()
     if not text:
         return None
@@ -87,10 +92,10 @@ def _coerce_json_object(text: str) -> dict[str, Any] | None:
     return None
 
 
-def _extract_urls(text: str) -> list[str]:
+def _extract_urls(text: str) -> List[str]:
     urls = re.findall(r"https?://[^\s)\]}>\"']+", text)
-    seen: set[str] = set()
-    out: list[str] = []
+    seen: set = set()
+    out: List[str] = []
     for url in urls:
         url = url.rstrip(".,;:!?'\"")
         if url and url not in seen:
@@ -99,23 +104,23 @@ def _extract_urls(text: str) -> list[str]:
     return out
 
 
-def _load_json_env(var_name: str) -> dict[str, Any]:
+def _load_json_env(var_name: str) -> Dict[str, Any]:
     raw = os.environ.get(var_name, "").strip()
     if not raw:
         return {}
     value = json.loads(raw)
     if not isinstance(value, dict):
-        raise ValueError(f"{var_name} must be a JSON object")
+        raise ValueError("{} must be a JSON object".format(var_name))
     return value
 
 
-def _parse_json_object(raw: str, *, label: str) -> dict[str, Any]:
+def _parse_json_object(raw: str, *, label: str) -> Dict[str, Any]:
     raw = raw.strip()
     if not raw:
         return {}
     value = json.loads(raw)
     if not isinstance(value, dict):
-        raise ValueError(f"{label} must be a JSON object")
+        raise ValueError("{} must be a JSON object".format(label))
     return value
 
 
@@ -126,10 +131,10 @@ def _request_chat_completions(
     model: str,
     query: str,
     timeout_seconds: float,
-    extra_headers: dict[str, Any],
-    extra_body: dict[str, Any],
-) -> dict[str, Any]:
-    url = f"{_normalize_base_url(base_url)}/v1/chat/completions"
+    extra_headers: Dict[str, Any],
+    extra_body: Dict[str, Any]
+) -> Dict[str, Any]:
+    url = "{}/v1/chat/completions".format(_normalize_base_url(base_url))
 
     system = (
         "You are a web research assistant. Use live web search/browsing when answering. "
@@ -138,7 +143,7 @@ def _request_chat_completions(
         "Keep content concise and evidence-backed."
     )
 
-    body: dict[str, Any] = {
+    body: Dict[str, Any] = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
@@ -149,9 +154,10 @@ def _request_chat_completions(
     }
     body.update(extra_body)
 
-    headers: dict[str, str] = {
+    headers: Dict[str, str] = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": "Bearer {}".format(api_key),
+        "User-Agent": "grok-search/1.0",
     }
     for key, value in extra_headers.items():
         headers[str(key)] = str(value)
@@ -191,25 +197,25 @@ def main() -> int:
     explicit_config_path = args.config.strip() or env_config_path
 
     config_path = ""
-    config: dict[str, Any] = {}
+    config: Dict[str, Any] = {}
 
     if explicit_config_path:
         config_path = explicit_config_path
         try:
             config = _load_json_file(config_path)
         except Exception as e:
-            sys.stderr.write(f"Invalid config ({config_path}): {e}\n")
+            sys.stderr.write("Invalid config ({}): {}\n".format(config_path, e))
             return 2
     else:
         fallback_path = ""
-        fallback_config: dict[str, Any] = {}
-        for candidate in [*_default_skill_config_paths(), _default_user_config_path()]:
+        fallback_config: Dict[str, Any] = {}
+        for candidate in _default_skill_config_paths() + [_default_user_config_path()]:
             if not os.path.exists(candidate):
                 continue
             try:
                 candidate_config = _load_json_file(candidate)
             except Exception as e:
-                sys.stderr.write(f"Invalid config ({candidate}): {e}\n")
+                sys.stderr.write("Invalid config ({}): {}\n".format(candidate, e))
                 return 2
 
             if not fallback_path:
@@ -246,33 +252,33 @@ def main() -> int:
     if not base_url:
         sys.stderr.write(
             "Missing base URL: set GROK_BASE_URL, write it to config, or pass --base-url\n"
-            f"Config path: {config_path}\n"
+            "Config path: {}\n".format(config_path)
         )
         return 2
 
     if not api_key:
         sys.stderr.write(
             "Missing API key: set GROK_API_KEY, write it to config, or pass --api-key\n"
-            f"Config path: {config_path}\n"
+            "Config path: {}\n".format(config_path)
         )
         return 2
 
     try:
-        extra_body: dict[str, Any] = {}
+        extra_body: Dict[str, Any] = {}
         cfg_extra_body = config.get("extra_body")
         if isinstance(cfg_extra_body, dict):
             extra_body.update(cfg_extra_body)
         extra_body.update(_load_json_env("GROK_EXTRA_BODY_JSON"))
         extra_body.update(_parse_json_object(args.extra_body_json, label="--extra-body-json"))
 
-        extra_headers: dict[str, Any] = {}
+        extra_headers: Dict[str, Any] = {}
         cfg_extra_headers = config.get("extra_headers")
         if isinstance(cfg_extra_headers, dict):
             extra_headers.update(cfg_extra_headers)
         extra_headers.update(_load_json_env("GROK_EXTRA_HEADERS_JSON"))
         extra_headers.update(_parse_json_object(args.extra_headers_json, label="--extra-headers-json"))
     except Exception as e:
-        sys.stderr.write(f"Invalid JSON: {e}\n")
+        sys.stderr.write("Invalid JSON: {}\n".format(e))
         return 2
 
     started = time.time()
@@ -290,7 +296,7 @@ def main() -> int:
         raw = e.read().decode("utf-8", errors="replace") if hasattr(e, "read") else ""
         out = {
             "ok": False,
-            "error": f"HTTP {getattr(e, 'code', None)}",
+            "error": "HTTP {}".format(getattr(e, "code", None)),
             "detail": raw or str(e),
             "config_path": config_path,
             "base_url": base_url,
@@ -321,7 +327,7 @@ def main() -> int:
         message = ""
 
     parsed = _coerce_json_object(message)
-    sources: list[dict[str, Any]] = []
+    sources: List[Dict[str, Any]] = []
     content = ""
     raw = ""
 

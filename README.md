@@ -16,6 +16,7 @@ A Codex/Claude skill that enables aggressive web research via your OpenAI-compat
 - 🔐 Secure config with local override support
 - 🌍 Environment variable configuration
 - ⚡ Easy one-click installation
+- 🐧 Cross-platform support (Windows, Linux, macOS)
 
 ### 📦 Installation
 
@@ -28,7 +29,12 @@ git clone https://github.com/Frankieli123/grok-skill.git
 # Enter the directory
 cd grok-skill
 
-# Run the install script (Windows PowerShell)
+# Run the install script
+# Linux/macOS:
+./install.sh              # Install to ~/.claude/skills/ (default)
+./install.sh --codex      # Install to ~/.codex/skills/
+
+# Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -36,29 +42,37 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 1. Download ZIP from: https://github.com/Frankieli123/grok-skill/archive/refs/heads/main.zip
 2. Extract to any folder
-3. Run `install.ps1` in PowerShell
+3. Run install script:
+   - Linux/macOS: `./install.sh`
+   - Windows: `install.ps1` in PowerShell
 
 #### Installation Path
 
 After installation, the skill will be located at:
-```
-C:\Users\<YourUsername>\.codex\skills\grok-search\
-```
+
+| Platform | Claude Code | Codex |
+|----------|-------------|-------|
+| Linux/macOS | `~/.claude/skills/grok-search/` | `~/.codex/skills/grok-search/` |
+| Windows | `%USERPROFILE%\.claude\skills\grok-search\` | `%USERPROFILE%\.codex\skills\grok-search\` |
 
 ### ⚙️ Configuration
 
 #### Option A: Interactive Configuration (Recommended)
 
-```powershell
-powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\grok-search\configure.ps1"
+```bash
+# Linux/macOS:
+~/.claude/skills/grok-search/configure.sh
+~/.claude/skills/grok-search/configure.sh --global  # Write to user-level config
+
+# Windows PowerShell:
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\skills\grok-search\configure.ps1"
 ```
 
 #### Option B: Manual Edit
 
 Edit the config file at:
-```
-C:\Users\<YourUsername>\.codex\skills\grok-search\config.json
-```
+- Linux/macOS: `~/.claude/skills/grok-search/config.json`
+- Windows: `%USERPROFILE%\.claude\skills\grok-search\config.json`
 
 ```json
 {
@@ -82,7 +96,13 @@ C:\Users\<YourUsername>\.codex\skills\grok-search\config.json
 
 #### Option C: Environment Variables
 
-```powershell
+```bash
+# Linux/macOS:
+export GROK_BASE_URL="https://your-grok-endpoint.example"
+export GROK_API_KEY="YOUR_API_KEY"
+export GROK_MODEL="grok-2-latest"
+
+# Windows PowerShell:
 $env:GROK_BASE_URL="https://your-grok-endpoint.example"
 $env:GROK_API_KEY="YOUR_API_KEY"
 $env:GROK_MODEL="grok-2-latest"
@@ -121,7 +141,7 @@ python scripts/grok_search.py --query "What is the latest version of Node.js?"
 
 Add the following prompt to your global agent configuration:
 
-**File:** `C:\Users\<YourUsername>\.codex\AGENTS.md` or `~/.claude/CLAUDE.md`
+**File:** `~/.claude/CLAUDE.md` or `~/.codex/AGENTS.md`
 
 ```markdown
 ## Web Search Rule
@@ -138,7 +158,7 @@ When encountering any of the following situations, ALWAYS use the `grok-search` 
 
 Usage example:
 ​```bash
-python ~/.codex/skills/grok-search/scripts/grok_search.py --query "Your search query here"
+python ~/.claude/skills/grok-search/scripts/grok_search.py --query "Your search query here"
 ​```
 
 After receiving search results, cite the sources in your response.
@@ -151,8 +171,10 @@ grok-search/
 ├── SKILL.md           # Skill definition for Codex/Claude
 ├── README.md          # This file
 ├── config.json        # Configuration template
-├── install.ps1        # Installation script
-├── configure.ps1      # Interactive configuration script
+├── install.sh         # Linux/macOS installation script
+├── install.ps1        # Windows installation script
+├── configure.sh       # Linux/macOS interactive configuration
+├── configure.ps1      # Windows interactive configuration
 └── scripts/
     └── grok_search.py # Main search script
 ```
@@ -171,6 +193,7 @@ grok-search/
 - 🔐 安全配置，支持本地覆盖
 - 🌍 支持环境变量配置
 - ⚡ 一键安装
+- 🐧 跨平台支持（Windows、Linux、macOS）
 
 ### 📦 安装方法
 
@@ -183,7 +206,12 @@ git clone https://github.com/Frankieli123/grok-skill.git
 # 进入目录
 cd grok-skill
 
-# 运行安装脚本（Windows PowerShell）
+# 运行安装脚本
+# Linux/macOS:
+./install.sh              # 安装到 ~/.claude/skills/（默认）
+./install.sh --codex      # 安装到 ~/.codex/skills/
+
+# Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -191,29 +219,37 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 1. 从这里下载 ZIP：https://github.com/Frankieli123/grok-skill/archive/refs/heads/main.zip
 2. 解压到任意文件夹
-3. 在 PowerShell 中运行 `install.ps1`
+3. 运行安装脚本：
+   - Linux/macOS: `./install.sh`
+   - Windows: 在 PowerShell 中运行 `install.ps1`
 
 #### 安装路径
 
 安装完成后，技能将位于：
-```
-C:\Users\<你的用户名>\.codex\skills\grok-search\
-```
+
+| 平台 | Claude Code | Codex |
+|------|-------------|-------|
+| Linux/macOS | `~/.claude/skills/grok-search/` | `~/.codex/skills/grok-search/` |
+| Windows | `%USERPROFILE%\.claude\skills\grok-search\` | `%USERPROFILE%\.codex\skills\grok-search\` |
 
 ### ⚙️ 配置说明
 
 #### 方式 A：交互式配置（推荐）
 
-```powershell
-powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\grok-search\configure.ps1"
+```bash
+# Linux/macOS:
+~/.claude/skills/grok-search/configure.sh
+~/.claude/skills/grok-search/configure.sh --global  # 写入用户级配置
+
+# Windows PowerShell:
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\skills\grok-search\configure.ps1"
 ```
 
 #### 方式 B：手动编辑
 
 编辑配置文件：
-```
-C:\Users\<你的用户名>\.codex\skills\grok-search\config.json
-```
+- Linux/macOS: `~/.claude/skills/grok-search/config.json`
+- Windows: `%USERPROFILE%\.claude\skills\grok-search\config.json`
 
 ```json
 {
@@ -237,7 +273,13 @@ C:\Users\<你的用户名>\.codex\skills\grok-search\config.json
 
 #### 方式 C：环境变量
 
-```powershell
+```bash
+# Linux/macOS:
+export GROK_BASE_URL="https://your-grok-endpoint.example"
+export GROK_API_KEY="YOUR_API_KEY"
+export GROK_MODEL="grok-2-latest"
+
+# Windows PowerShell:
 $env:GROK_BASE_URL="https://your-grok-endpoint.example"
 $env:GROK_API_KEY="YOUR_API_KEY"
 $env:GROK_MODEL="grok-2-latest"
@@ -276,7 +318,7 @@ python scripts/grok_search.py --query "Node.js 最新版本是什么？"
 
 将以下提示词添加到你的全局 Agent 配置中：
 
-**文件位置：** `C:\Users\<你的用户名>\.codex\AGENTS.md` 或 `~/.claude/CLAUDE.md`
+**文件位置：** `~/.claude/CLAUDE.md` 或 `~/.codex/AGENTS.md`
 
 ```markdown
 ## 联网搜索规则
@@ -293,7 +335,7 @@ python scripts/grok_search.py --query "Node.js 最新版本是什么？"
 
 使用示例：
 ​```bash
-python ~/.codex/skills/grok-search/scripts/grok_search.py --query "你的搜索查询"
+python ~/.claude/skills/grok-search/scripts/grok_search.py --query "你的搜索查询"
 ​```
 
 收到搜索结果后，在回答中引用来源。
@@ -306,8 +348,10 @@ grok-search/
 ├── SKILL.md           # Codex/Claude 技能定义文件
 ├── README.md          # 本文件
 ├── config.json        # 配置模板
-├── install.ps1        # 安装脚本
-├── configure.ps1      # 交互式配置脚本
+├── install.sh         # Linux/macOS 安装脚本
+├── install.ps1        # Windows 安装脚本
+├── configure.sh       # Linux/macOS 交互式配置脚本
+├── configure.ps1      # Windows 交互式配置脚本
 └── scripts/
     └── grok_search.py # 主搜索脚本
 ```
