@@ -170,6 +170,34 @@ def _request_chat_completions(
     )
     with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
+        stripped = raw.strip()
+        # Non-streaming JSON response
+        if stripped.startswith("{"):
+            return json.loads(stripped)
+        # SSE streaming response (data: ... lines)
+        if stripped.startswith("data:"):
+            collected_content = ""
+            model_name = ""
+            for line in stripped.split("\n"):
+                line = line.strip()
+                if not line.startswith("data:"):
+                    continue
+                payload = line[len("data:"):].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(payload)
+                    if not model_name:
+                        model_name = chunk.get("model", "")
+                    choices = chunk.get("choices") or [{}]
+                    delta = choices[0].get("delta") or {}
+                    collected_content += delta.get("content") or ""
+                except (json.JSONDecodeError, IndexError, KeyError):
+                    continue
+            return {
+                "choices": [{"message": {"content": collected_content}}],
+                "model": model_name,
+            }
         return json.loads(raw)
 
 
