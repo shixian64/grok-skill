@@ -83,12 +83,62 @@ def _coerce_json_object(text: str) -> Optional[Dict[str, Any]]:
     text = text.strip()
     if not text:
         return None
+
+    # 尝试直接解析 JSON
     if text.startswith("{") and text.endswith("}"):
         try:
             value = json.loads(text)
             return value if isinstance(value, dict) else None
         except json.JSONDecodeError:
-            return None
+            pass
+
+    # 尝试从 Markdown 代码块中提取 JSON
+    json_match = re.search(r'```json\s*\n(.*?)\n```', text, re.DOTALL)
+    if json_match:
+        try:
+            value = json.loads(json_match.group(1))
+            return value if isinstance(value, dict) else None
+        except json.JSONDecodeError:
+            pass
+
+    # 尝试查找包含 content 和 sources 的 JSON 对象
+    # 使用更宽松的正则表达式
+    json_match = re.search(r'\{"content":', text)
+    if json_match:
+        try:
+            # 找到最外层的完整 JSON 对象
+            start = json_match.start()
+            brace_count = 0
+            in_string = False
+            escape_next = False
+
+            for i in range(start, len(text)):
+                char = text[i]
+
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == '\\':
+                    escape_next = True
+                    continue
+
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_str = text[start:i+1]
+                            value = json.loads(json_str)
+                            return value if isinstance(value, dict) else None
+        except (json.JSONDecodeError, ValueError):
+            pass
+
     return None
 
 
@@ -122,6 +172,52 @@ def _parse_json_object(raw: str, *, label: str) -> Dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("{} must be a JSON object".format(label))
     return value
+
+
+def _parse_sse_response(raw: str) -> dict[str, Any]:
+    """解析 SSE 流式响应，合并所有 delta.content"""
+    lines = raw.strip().split("\n")
+    content_parts = []
+    model_name = ""
+
+    for line in lines:
+        line = line.strip()
+        if not line or line == "data: [DONE]":
+            continue
+
+        if line.startswith("data: "):
+            json_str = line[6:]  # 移除 "data: " 前缀
+            try:
+                chunk = json.loads(json_str)
+
+                # 提取模型名称
+                if not model_name and "model" in chunk:
+                    model_name = chunk["model"]
+
+                # 提取 content
+                choices = chunk.get("choices", [])
+                if choices:
+                    delta = choices[0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        content_parts.append(content)
+            except json.JSONDecodeError:
+                continue
+
+    # 合并所有内容
+    full_content = "".join(content_parts)
+
+    # 构造标准响应格式
+    return {
+        "choices": [
+            {
+                "message": {
+                    "content": full_content
+                }
+            }
+        ],
+        "model": model_name
+    }
 
 
 def _request_chat_completions(
@@ -168,37 +264,38 @@ def _request_chat_completions(
         headers=headers,
         method="POST",
     )
+
+    # 优先使用 requests 库（处理代理和 SSL 重协商更可靠）
+    try:
+        import requests as _requests
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        body_dict = json.loads(_compact_json(body))
+        r = _requests.post(
+            url,
+            json=body_dict,
+            headers=headers,
+            timeout=timeout_seconds,
+            verify=False,
+        )
+        if r.status_code != 200:
+            raise urllib.error.HTTPError(url, r.status_code, r.text, {}, None)
+        raw = r.content.decode("utf-8", errors="replace")
+        if raw.strip().startswith("data:"):
+            return _parse_sse_response(raw)
+        return json.loads(raw)
+    except ImportError:
+        pass
+
     with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
-        stripped = raw.strip()
-        # Non-streaming JSON response
-        if stripped.startswith("{"):
-            return json.loads(stripped)
-        # SSE streaming response (data: ... lines)
-        if stripped.startswith("data:"):
-            collected_content = ""
-            model_name = ""
-            for line in stripped.split("\n"):
-                line = line.strip()
-                if not line.startswith("data:"):
-                    continue
-                payload = line[len("data:"):].strip()
-                if payload == "[DONE]":
-                    break
-                try:
-                    chunk = json.loads(payload)
-                    if not model_name:
-                        model_name = chunk.get("model", "")
-                    choices = chunk.get("choices") or [{}]
-                    delta = choices[0].get("delta") or {}
-                    collected_content += delta.get("content") or ""
-                except (json.JSONDecodeError, IndexError, KeyError):
-                    continue
-            return {
-                "choices": [{"message": {"content": collected_content}}],
-                "model": model_name,
-            }
-        return json.loads(raw)
+
+        # 检测是否为 SSE 流式响应
+        if raw.strip().startswith("data:"):
+            return _parse_sse_response(raw)
+        else:
+            # 标准 JSON 响应
+            return json.loads(raw)
 
 
 def main() -> int:
@@ -354,12 +451,14 @@ def main() -> int:
     except Exception:
         message = ""
 
+    # 尝试解析 JSON
     parsed = _coerce_json_object(message)
     sources: List[Dict[str, Any]] = []
     content = ""
     raw = ""
 
     if parsed is not None:
+        # 成功解析 JSON
         content = str(parsed.get("content") or "")
         src = parsed.get("sources")
         if isinstance(src, list):
@@ -376,7 +475,9 @@ def main() -> int:
             for url in _extract_urls(content):
                 sources.append({"url": url, "title": "", "snippet": ""})
     else:
+        # 无法解析为 JSON，将完整消息放入 raw
         raw = message
+        # 尝试从 raw 中提取 URL
         for url in _extract_urls(message):
             sources.append({"url": url, "title": "", "snippet": ""})
 
@@ -392,7 +493,12 @@ def main() -> int:
         "usage": resp.get("usage") or {},
         "elapsed_ms": int((time.time() - started) * 1000),
     }
-    sys.stdout.write(_compact_json(out))
+    # 确保正确输出 UTF-8 编码
+    output = _compact_json(out)
+    if hasattr(sys.stdout, 'buffer'):
+        sys.stdout.buffer.write(output.encode('utf-8'))
+    else:
+        sys.stdout.write(output)
     return 0
 
 
