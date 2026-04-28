@@ -254,6 +254,7 @@ def _request_chat_completions(
         "Content-Type": "application/json",
         "Authorization": "Bearer {}".format(api_key),
         "User-Agent": "grok-search/1.0",
+        "Accept-Encoding": "gzip, deflate",
     }
     for key, value in extra_headers.items():
         headers[str(key)] = str(value)
