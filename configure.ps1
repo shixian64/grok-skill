@@ -1,8 +1,8 @@
-$ErrorActionPreference = 'Stop'
-
 param(
   [switch]$Global
 )
+
+$ErrorActionPreference = 'Stop'
 
 function Resolve-GrokConfigPath {
   $custom = $env:GROK_CONFIG_PATH
